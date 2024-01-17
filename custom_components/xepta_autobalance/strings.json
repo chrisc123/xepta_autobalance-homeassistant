@@ -1,0 +1,39 @@
+{
+  "title": "Xepta AutoBalance",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Xepta AutoBalance",
+        "description": "Enter the details of your Xepta AutoBalance device.",
+        "data": {
+          "ip_address": "IP Address",
+          "polling_frequency": "Polling Frequency (seconds)"
+        }
+      },
+      "device_options": {
+        "title": "Device Options",
+        "description": "Configure additional options for your device.",
+        "data": {
+          "device_name": "Device Name (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_ip": "Invalid IP address. Please enter a valid IP address.",
+      "already_configured": "This IP address is already configured. Each device must have a unique IP address."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update your Xepta AutoBalance settings",
+        "data": {
+          "polling_frequency": "Polling Frequency (seconds)"
+        }
+      }
+    }
+  }
+}

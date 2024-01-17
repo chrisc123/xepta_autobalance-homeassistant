@@ -1,0 +1,19 @@
+{
+    "domain": "xepta_autobalance",
+    "version": "0.1",
+    "name": "Xepta AutoBalance Integration",
+    "config_flow": true,
+    "documentation": "https://github.com/cjc123/xepta_autobalance-homeassisant",
+    "issue_tracker": "https://github.com/cjc123/xepta_autobalance-homeassisant/issues",
+    "ssdp": [],
+    "zeroconf": [],
+    "homekit": {},
+    "requirements": [
+    "httpx>=0.21.0"
+    ],
+    "dependencies": [],
+    "codeowners": [
+    "@cjc123"
+    ],
+    "iot_class": "local_polling"
+}
