@@ -21,6 +21,7 @@ def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(sensors)
 
 class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
+    _attr_state_class = STATE_CLASS_MEASUREMENT
     # Representation of a Xepta AutoBalance Sensor.
     def __init__(self, coordinator, config_entry):
         device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
@@ -50,6 +51,7 @@ class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
     # Implement other properties and methods as needed
 
 class XeptaAutoBalanceReagentSensor(CoordinatorEntity, SensorEntity):
+    _attr_state_class = STATE_CLASS_MEASUREMENT
     # Representation of a Xepta AutoBalance Reagent Level Sensor.
     def __init__(self, coordinator, config_entry, endpoint):
         # Initialize the sensor.
