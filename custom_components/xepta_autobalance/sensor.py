@@ -33,13 +33,12 @@ class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        """Return the state of the sensor, checking analysis status."""
-        analysis_data = self.coordinator.data.get("/analysis/0", {})
-        if analysis_data and await self.coordinator.api.is_analysis_finished():
-            return round(analysis_data.get("khResult", 0), 2)
-        else:
-            return None
-
+        # Return the state of the sensor.
+        data = self.coordinator.data.get("/analysis/0", {})
+        if data and data.get("isFinished", False):  # Check if analysis is finished
+            return round(data.get("khResult", 0), 2)
+        return None  # Return None if analysis is in progress or data is unavailable
+        
     @property
     def device_info(self):
         device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self.coordinator.api._ip_address}")
