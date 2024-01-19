@@ -97,3 +97,15 @@ class XeptaAutoBalanceAPI:
             data[endpoint] = json_data
             await asyncio.sleep(1)  # Delay to prevent overwhelming the device
         return data
+        
+    async def is_analysis_finished(self):
+        """Check if the analysis is finished."""
+        _LOGGER.debug('Checking if analysis is finished - is_analysis_finished')
+        try:
+            response = await self.session.get(f"http://{self._ip_address}/analysis/0")
+            response.raise_for_status()
+            data = await response.json()
+            return data.get("isFinished") == True
+        except Exception as e:
+            _LOGGER.error(f"Error checking analysis status: {e}")
+            return False
