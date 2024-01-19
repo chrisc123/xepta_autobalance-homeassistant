@@ -33,9 +33,12 @@ class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        # Return the state of the sensor.
-        data = self.coordinator.data.get("/analysis/0", {})
-        return round(data.get("khResult", 0), 2) if data else None
+        """Return the state of the sensor, checking analysis status."""
+        analysis_data = self.coordinator.data.get("/analysis/0", {})
+        if analysis_data and await self.coordinator.api.is_analysis_finished():
+            return round(analysis_data.get("khResult", 0), 2)
+        else:
+            return None
 
     @property
     def device_info(self):
