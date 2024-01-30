@@ -13,8 +13,6 @@ from .const import (
     DOMAIN
 )
 
-
-
 async def async_setup(hass: HomeAssistant, config: dict):
     # Set up the Xepta AutoBalance component.
     hass.data.setdefault(DOMAIN, {})
@@ -41,13 +39,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     )
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
-
     # Create the sensor platform setup tasks
     _LOGGER.debug('Setting up platforms for Xepta AutoBalance integration')
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setup(entry, "sensor")
     )
-
     return True
 
 async def update_listener(hass, entry):
@@ -64,7 +60,6 @@ class XeptaAutoBalanceCoordinator(DataUpdateCoordinator):
         self.update_interval = timedelta(seconds=entry.data["polling_frequency"])
 
         _LOGGER.debug(f"Update interval {self.update_interval.total_seconds()} seconds")
-
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=self.update_interval)
 
     async def _async_update_data(self):
