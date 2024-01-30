@@ -1,6 +1,6 @@
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.sensor import STATE_CLASS_MEASUREMENT
+from homeassistant.components.sensor import SensorStateClass
 
 from .const import (
     _LOGGER,
@@ -9,19 +9,19 @@ from .const import (
 
 from . import XeptaAutoBalanceCoordinator
 
-def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(hass, config_entry, async_add_entities):
     # Set up the sensor platform.
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
 
     # Now that we have data, create and add sensor entities
-    sensors = [XeptaAutoBalanceSensor(coordinator, config_entry)]
+    sensors = [XeptaAutoBalanceSensor(coordinator, config_entry), XeptaAutoBalancePHSensor(coordinator, config_entry)]  # Added pH sensor to the list
     endpoints = ["/dispenser/kh", "/dispenser/ca", "/dispenser/reagent", "/dispenser/trace"]
     sensors.extend([XeptaAutoBalanceReagentSensor(coordinator, config_entry, endpoint) for endpoint in endpoints])
     sensors.append(XeptaAutoBalanceSystemStateSensor(coordinator, config_entry))
     async_add_entities(sensors)
 
 class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
-    _attr_state_class = STATE_CLASS_MEASUREMENT
+    _attr_state_class = SensorStateClass.MEASUREMENT
     # Representation of a Xepta AutoBalance Sensor.
     def __init__(self, coordinator, config_entry):
         device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
@@ -50,10 +50,38 @@ class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
             "sw_version": "1.0"
         }
 
-    # Implement other properties and methods as needed
+class XeptaAutoBalancePHSensor(CoordinatorEntity, SensorEntity):
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, config_entry):
+        device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
+        super().__init__(coordinator)
+        self.config_entry = config_entry
+        self._attr_name = f"{device_name} pH Value"
+        self._attr_unique_id = f"{config_entry.entry_id}_ph_value"
+
+    @property
+    def state(self):
+        # Return the state of the sensor.
+        data = self.coordinator.data.get("/analysis/0", {})
+        if data and data.get("isFinished", False):  # Check if analysis is finished
+            return round(data.get("firstPh", 0), 2)
+        return None  # Return None if analysis is in progress or data is unavailable
+        
+        
+    @property
+    def device_info(self):
+        device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self.coordinator.api._ip_address}")
+        return {
+            "identifiers": {(DOMAIN, self.config_entry.data["ip_address"])},
+            "name": device_name,
+            "manufacturer": "Xepta",
+            "model": "AutoBalance Model",
+            "sw_version": "1.0"
+        }
 
 class XeptaAutoBalanceReagentSensor(CoordinatorEntity, SensorEntity):
-    _attr_state_class = STATE_CLASS_MEASUREMENT
+    _attr_state_class = SensorStateClass.MEASUREMENT
     # Representation of a Xepta AutoBalance Reagent Level Sensor.
     def __init__(self, coordinator, config_entry, endpoint):
         # Initialize the sensor.
