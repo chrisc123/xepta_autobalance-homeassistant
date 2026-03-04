@@ -11,7 +11,7 @@ from .const import (
 
 class XeptaAutoBalanceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
+    # CONNECTION_CLASS is deprecated
 
     def __init__(self):
         self.device_config = {}
@@ -21,12 +21,14 @@ class XeptaAutoBalanceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            valid_ip = self._validate_ip(user_input["ip_address"])
+            ip_address = user_input["ip_address"]
+            valid_ip = self._validate_ip(ip_address)
             if not valid_ip:
                 errors["base"] = "invalid_ip"
-            elif await self._is_already_configured(user_input["ip_address"]):
-                errors["base"] = "already_configured"
             else:
+                await self.async_set_unique_id(ip_address)
+                self._abort_if_unique_id_configured()
+                
                 self.device_config = user_input
                 return await self.async_step_device_options()
 
@@ -43,12 +45,12 @@ class XeptaAutoBalanceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the options for the device."""
         if user_input is not None:
             self.device_config.update(user_input)
-            return self.async_create_entry(title=f"Device {self.device_config['ip_address']}", data=self.device_config)
+            return self.async_create_entry(title=self.device_config.get("device_name", self.device_config["ip_address"]), data=self.device_config)
 
         return self.async_show_form(
             step_id="device_options",
             data_schema=vol.Schema({
-                vol.Optional("device_name", default="Xepta AutoBalance Device"): str,
+                vol.Optional("device_name", default="Xepta AutoBalance"): str,
             })
         )
 
@@ -59,11 +61,6 @@ class XeptaAutoBalanceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return True
         except ValueError:
             return False
-
-    async def _is_already_configured(self, ip_address):
-        """Check if an IP address is already configured."""
-        existing_entries = self._async_current_entries()
-        return any(entry.data["ip_address"] == ip_address for entry in existing_entries)
 
     @staticmethod
     @callback
@@ -81,6 +78,6 @@ class XeptaAutoBalanceOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required("polling_frequency", default=self.config_entry.options.get("polling_frequency", 60)): cv.positive_int,
+                vol.Required("polling_frequency", default=self.config_entry.options.get("polling_frequency", self.config_entry.data.get("polling_frequency", 60))): cv.positive_int,
             })
         )

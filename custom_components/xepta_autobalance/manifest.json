@@ -8,12 +8,10 @@
     "ssdp": [],
     "zeroconf": [],
     "homekit": {},
-    "requirements": [
-    "httpx>=0.21.0"
-    ],
+    "requirements": [],
     "dependencies": [],
     "codeowners": [
-    "@cjc123"
+        "@cjc123"
     ],
     "iot_class": "local_polling"
 }

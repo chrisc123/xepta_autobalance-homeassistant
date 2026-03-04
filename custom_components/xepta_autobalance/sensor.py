@@ -1,141 +1,140 @@
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorDeviceClass,
+    SensorStateClass
+)
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.sensor import SensorStateClass
+from homeassistant.const import UnitOfVolume
 
 from .const import (
     _LOGGER,
     DOMAIN
 )
 
-from . import XeptaAutoBalanceCoordinator
-
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    # Set up the sensor platform.
+    """Set up the sensor platform."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    # Now that we have data, create and add sensor entities
-    sensors = [XeptaAutoBalanceSensor(coordinator, config_entry), XeptaAutoBalancePHSensor(coordinator, config_entry)]  # Added pH sensor to the list
-    endpoints = ["/dispenser/kh", "/dispenser/ca", "/dispenser/reagent", "/dispenser/trace"]
-    sensors.extend([XeptaAutoBalanceReagentSensor(coordinator, config_entry, endpoint) for endpoint in endpoints])
-    sensors.append(XeptaAutoBalanceSystemStateSensor(coordinator, config_entry))
+    sensors = [
+        XeptaAutoBalanceSensor(coordinator, config_entry), 
+        XeptaAutoBalancePHSensor(coordinator, config_entry),
+        XeptaAutoBalanceSystemStateSensor(coordinator, config_entry)
+    ]
+
+    endpoints = {
+        "/dispenser/kh": "kH Dispenser Remaining", 
+        "/dispenser/ca": "Calcium Dispenser Remaining", 
+        "/dispenser/reagent": "Reagent Remaining", 
+        "/dispenser/trace": "Trace Elements Remaining"
+    }
+    
+    for endpoint, name in endpoints.items():
+        sensors.append(XeptaAutoBalanceReagentSensor(coordinator, config_entry, endpoint, name))
+        
     async_add_entities(sensors)
 
-class XeptaAutoBalanceSensor(CoordinatorEntity, SensorEntity):
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    # Representation of a Xepta AutoBalance Sensor.
+class XeptaBaseEntity(CoordinatorEntity, SensorEntity):
+    """Base class for Xepta AutoBalance entities."""
+    
+    _attr_has_entity_name = True
+    
     def __init__(self, coordinator, config_entry):
-        device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
-        # Initialize the sensor.
         super().__init__(coordinator)
         self.config_entry = config_entry
-        self._attr_name = f"{device_name} kH Value"
+        self._ip = config_entry.data["ip_address"]
+
+    @property
+    def device_info(self):
+        """Return device registry information for this entity."""
+        system_data = self.coordinator.data.get("/system", {})
+        fw_version = system_data.get("firmwareVersion", "Unknown")
+        hw_version = system_data.get("pcbVersion", "Unknown")
+        
+        device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self._ip}")
+        
+        return {
+            "identifiers": {(DOMAIN, self._ip)},
+            "name": device_name,
+            "manufacturer": "Xepta",
+            "model": "AutoBalance",
+            "sw_version": fw_version,
+            "hw_version": hw_version,
+        }
+
+class XeptaAutoBalanceSensor(XeptaBaseEntity):
+    """Representation of the kH Value Sensor."""
+    
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "kH"
+    _attr_native_unit_of_measurement = "dKH"
+
+    def __init__(self, coordinator, config_entry):
+        super().__init__(coordinator, config_entry)
         self._attr_unique_id = f"{config_entry.entry_id}_kh_value"
 
     @property
-    def state(self):
-        # Return the state of the sensor.
+    def native_value(self):
+        """Return the state of the sensor."""
         data = self.coordinator.data.get("/analysis/0", {})
-        if data and data.get("isFinished", False):  # Check if analysis is finished
+        if data and data.get("isFinished", False):
             return round(data.get("khResult", 0), 2)
-        return None  # Return None if analysis is in progress or data is unavailable
-        
-    @property
-    def device_info(self):
-        device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self.coordinator.api._ip_address}")
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["ip_address"])},
-            "name": device_name,
-            "manufacturer": "Xepta",
-            "model": "AutoBalance Model",
-            "sw_version": "1.0"
-        }
+        return None
 
-class XeptaAutoBalancePHSensor(CoordinatorEntity, SensorEntity):
+class XeptaAutoBalancePHSensor(XeptaBaseEntity):
+    """Representation of the pH Value Sensor."""
+    
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_device_class = SensorDeviceClass.PH
+    _attr_name = "pH"
 
     def __init__(self, coordinator, config_entry):
-        device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
-        super().__init__(coordinator)
-        self.config_entry = config_entry
-        self._attr_name = f"{device_name} pH Value"
+        super().__init__(coordinator, config_entry)
         self._attr_unique_id = f"{config_entry.entry_id}_ph_value"
 
     @property
-    def state(self):
-        # Return the state of the sensor.
+    def native_value(self):
+        """Return the state of the sensor."""
         data = self.coordinator.data.get("/analysis/0", {})
-        if data and data.get("isFinished", False):  # Check if analysis is finished
+        if data and data.get("isFinished", False):
             return round(data.get("firstPh", 0), 2)
-        return None  # Return None if analysis is in progress or data is unavailable
-        
-        
-    @property
-    def device_info(self):
-        device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self.coordinator.api._ip_address}")
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["ip_address"])},
-            "name": device_name,
-            "manufacturer": "Xepta",
-            "model": "AutoBalance Model",
-            "sw_version": "1.0"
-        }
+        return None
 
-class XeptaAutoBalanceReagentSensor(CoordinatorEntity, SensorEntity):
+class XeptaAutoBalanceReagentSensor(XeptaBaseEntity):
+    """Representation of a Xepta AutoBalance Reagent Level Sensor."""
+    
     _attr_state_class = SensorStateClass.MEASUREMENT
-    # Representation of a Xepta AutoBalance Reagent Level Sensor.
-    def __init__(self, coordinator, config_entry, endpoint):
-        # Initialize the sensor.
-        device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
-        super().__init__(coordinator)
-        self.config_entry = config_entry
+    _attr_device_class = SensorDeviceClass.VOLUME_STORAGE
+    _attr_native_unit_of_measurement = UnitOfVolume.MILLILITERS
+
+    def __init__(self, coordinator, config_entry, endpoint, sensor_name):
+        super().__init__(coordinator, config_entry)
         self.endpoint = endpoint
-        self._attr_name = f"{device_name} {endpoint.split('/')[-1]} Level"
+        self._attr_name = sensor_name
         self._attr_unique_id = f"{config_entry.entry_id}_{endpoint.split('/')[-1]}_level"
 
     @property
-    def state(self):
-        # Return the state of the sensor.
+    def native_value(self):
+        """Return the state of the sensor."""
         data = self.coordinator.data.get(self.endpoint, {})
         return round(data.get("depositLeft", 0)) if data else None
 
-    @property
-    def device_info(self):
-        device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self.coordinator.api._ip_address}")
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["ip_address"])},
-            "name": device_name,
-            "manufacturer": "Xepta",
-            "model": "AutoBalance Model",
-            "sw_version": "1.0"
-        }
+class XeptaAutoBalanceSystemStateSensor(XeptaBaseEntity):
+    """Representation of the Xepta AutoBalance System State Sensor."""
 
-    # Implement other properties and methods as needed
-class XeptaAutoBalanceSystemStateSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Xepta AutoBalance System State Sensor."""
-
+    _attr_name = "Status"
+    
     def __init__(self, coordinator, config_entry):
-        device_name = config_entry.data.get("device_name", f"Xepta AutoBalance {coordinator.api._ip_address}")
-        super().__init__(coordinator)
-        self.config_entry = config_entry
-        self._attr_name = f"{device_name} System State"
+        super().__init__(coordinator, config_entry)
         self._attr_unique_id = f"{config_entry.entry_id}_system_state"
 
     @property
-    def state(self):
-        """Return the state of the sensor."""
+    def native_value(self):
+        """Return the native value of the sensor."""
         system_data = self.coordinator.data.get('/system', {})
+        state_human = system_data.get("stateHuman", None)
+        if state_human:
+            return state_human
+        
+        # Fallback to numeric state logic if stateHuman is missing
         state = system_data.get('state', None)
-        return "OK" if state == 5 else "Unhealthy"
-
-    @property
-    def device_info(self):
-        device_name = self.config_entry.data.get("device_name", f"Xepta AutoBalance {self.coordinator.api._ip_address}")
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["ip_address"])},
-            "name": device_name,
-            "manufacturer": "Xepta",
-            "model": "AutoBalance Model",
-            "sw_version": "1.0"
-        }
-
-    # Implement other properties and methods as needed
+        return "Dosification" if state == 5 else "Unhealthy" if state is not None else "Unknown"
